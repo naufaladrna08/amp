@@ -7,9 +7,9 @@ GLBuffer::GLBuffer() {
 }
 
 GLBuffer::~GLBuffer() {
-  glDeleteVertexArrays(1, &m_vao);
-  glDeleteBuffers(1, &m_ibo);
-  glDeleteBuffers(1, &m_vbo);
+  // glDeleteVertexArrays(1, &m_vao);
+  // glDeleteBuffers(1, &m_ibo);
+  // glDeleteBuffers(1, &m_vbo);
 }
 
 void GLBuffer::Bind() {
@@ -34,8 +34,12 @@ void GLBuffer::BufferData(unsigned int vertex_size, const void* vertex_data, uns
   glBufferData(GL_ARRAY_BUFFER, vertex_size, vertex_data, usage);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_size, element_data, usage);
 
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0);
+  this->Unbind();
+}
 
+void GLBuffer::VertexAttribPointer(unsigned int index, int size, unsigned int type, bool normalized, int stride, const void* pointer) {
+  this->Bind();
+  glEnableVertexAttribArray(index);
+  glVertexAttribPointer(index, size, type, normalized, stride, pointer);
   this->Unbind();
 }

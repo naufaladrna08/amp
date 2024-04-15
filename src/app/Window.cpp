@@ -22,6 +22,8 @@ Window::Window(int width, int height, const char* title) {
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
     std::cout << "Failed to initialize GLAD!\n";
   }
+
+  glEnable(GL_DEPTH_TEST);
 }
 
 Window::~Window() {

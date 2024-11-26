@@ -7,7 +7,8 @@
 
 const float WIDTH = 1280.0f;
 const float HEIGHT = 720.0f;
-Window* window = new Window(WIDTH, HEIGHT, "OpenGL");
+static std::string s_appTitle = "Naufal DAW";
+Window* window = new Window(WIDTH, HEIGHT, s_appTitle.c_str());
 
 int main(int argc, char const *argv[]) {
   ImGui::CreateContext();
@@ -50,6 +51,7 @@ int main(int argc, char const *argv[]) {
     ImGui::NewFrame();
 
     splashScreen.draw(engineManager);
+    ImGui::ShowDemoWindow();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

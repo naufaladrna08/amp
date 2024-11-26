@@ -1,11 +1,7 @@
 #include <iostream>
 #include <app/Window.hpp>
-#include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
-#include <ui/FileDialog.hpp>
-#include <ui/ImGuiTheme.hpp>
-#include <ui/IconsFontAwesome6.hpp>
+#include <ui/UI.hpp>
+#include <ui/SplashScreen.hpp>
 #include <engine/AudioEngineManager.hpp>
 #include <engine/implementation/Jack.hpp>
 
@@ -23,6 +19,7 @@ int main(int argc, char const *argv[]) {
   /* Fonts */
   ImGuiIO& io = ImGui::GetIO();
   io.Fonts->AddFontFromFileTTF("resources/fonts/Segoe-UI.ttf", 18.0f);
+  io.Fonts->AddFontFromFileTTF("resources/fonts/Segoe-UI.ttf", 24.0f);
   float baseFontSize = 18.0f; // 13.0f is the size of the default font. Change to the font size you use.
   float iconFontSize = baseFontSize * 2.0f / 3.0f; // FontAwesome fonts need to have their sizes reduced by 2.0f/3.0f in order to align correctly
 
@@ -41,6 +38,9 @@ int main(int argc, char const *argv[]) {
   std::string selectedInputDevice;
   std::vector<std::string> availableInputs;
 
+  SplashScreen splashScreen;
+  splashScreen.init();
+
   while (!window->isClosed()) {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -49,70 +49,7 @@ int main(int argc, char const *argv[]) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-
-    ImGui::Begin("Audio Engine");
-      // Select Engine
-      if (ImGui::BeginCombo("Audio Engine", selectedEngine.c_str())) {
-        if (ImGui::Selectable("JACK", selectedEngine == "JACK")) {
-          selectedEngine = "JACK";
-          engineManager.setEngine(std::make_unique<JackEngine>());
-        }
-        if (ImGui::Selectable("PulseAudio", selectedEngine == "PulseAudio")) {
-          selectedEngine = "PulseAudio";
-          // engineManager.setEngine(std::make_unique<PulseAudioEngine>());
-        }
-        ImGui::EndCombo();
-      }
-
-      // Select Input Device
-      if (engineManager.getEngine()) {
-        availableInputs = engineManager.getEngine()->getAvailableInputDevices();
-        if (ImGui::BeginCombo("Input Device", selectedInputDevice.c_str())) {
-          for (const auto &input : availableInputs) {
-            if (ImGui::Selectable(input.c_str(), selectedInputDevice == input)) {
-              selectedInputDevice = input;
-              engineManager.getEngine()->setInputDevice(input);
-            }
-          }
-          ImGui::EndCombo();
-        }
-      }
-
-      // Status 
-      if (engineManager.getEngine()) {
-        ImGui::Text("Backend Running: %s", engineManager.getEngine()->isBackendRunning() ? "Yes" : "No");
-      }
-
-      // Start/Stop Backend
-      if (engineManager.getEngine()) {
-        if (ImGui::Button("Start Backend")) {
-          engineManager.getEngine()->startBackend();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Stop Backend")) {
-          engineManager.getEngine()->stopBackend();
-        }
-      }
-
-      // Start/Stop Recording
-      if (engineManager.getEngine()) {
-        if (ImGui::Button("Start Recording")) {
-          engineManager.getEngine()->startRecording();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Stop Recording")) {
-          engineManager.getEngine()->stopRecording();
-        }
-      }
-
-    ImGui::End();
-
-    if (engineManager.getEngine()) {
-      if (engineManager.getEngine()->isRecording()) {
-        std::cout << "Writing audio buffer" << std::endl;
-        engineManager.getEngine()->writeAudioBuffer();
-      }
-    }
+    splashScreen.draw(engineManager);
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

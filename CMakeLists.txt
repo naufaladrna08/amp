@@ -27,10 +27,13 @@ add_executable(
   src/core/GLBuffer.cpp
   src/core/GLShader.cpp
   src/core/GLFramebuffer.cpp
+  src/core/LoadTexture.cpp
   src/engine/Mesh.cpp
   src/engine/Model.cpp
   src/engine/StbImage.cpp
   src/ui/FileDialog.cpp
+  src/ui/SplashScreen.cpp
+  src/ui/ImGuiTheme.cpp
   src/engine/AudioEngineManager.cpp
   src/engine/implementation/Jack.cpp
 )

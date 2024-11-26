@@ -1,91 +1,19 @@
 #include <iostream>
 #include <app/Window.hpp>
-#include <core/GLBuffer.hpp>
-#include <core/GLShader.hpp>
-#include <engine/Mesh.hpp>
-#include <engine/Model.hpp>
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <ui/FileDialog.hpp>
 #include <ui/ImGuiTheme.hpp>
 #include <ui/IconsFontAwesome6.hpp>
+#include <engine/AudioEngineManager.hpp>
+#include <engine/implementation/Jack.hpp>
 
 const float WIDTH = 1280.0f;
 const float HEIGHT = 720.0f;
 Window* window = new Window(WIDTH, HEIGHT, "OpenGL");
 
-std::vector<std::string> allowedExtensions = {".obj", ".gltf"};
-
-/* Rotate with mouse */
-bool middleMousePressed = false;
-double lastMouseX, lastMouseY;
-
-/* Drag with shift */
-bool shiftPressed = false;
-
-/* Camera */
-GLfloat cameraRadius = 5.0f;
-GLfloat cameraYaw = 0.0f;
-GLfloat cameraPitch = 0.0f;
-GLfloat cameraSpeed = 0.1f;
-GLfloat zoomSpeed = 0.1f;
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, cameraRadius);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
-
-void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
-  glViewport(0, 0, width, height);
-}
-
-void windowSizeCallback(GLFWwindow* window, int width, int height) {
-  glViewport(0, 0, width, height);
-}
-
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-  if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS) {
-    middleMousePressed = true;
-  } else if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE) {
-    middleMousePressed = false;
-  }
-}
-
-void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
-  double deltaX = xpos - lastMouseX;
-  double deltaY = ypos - lastMouseY;
-
-  if (middleMousePressed && !shiftPressed) {
-    cameraYaw += deltaX * cameraSpeed;
-    cameraPitch += deltaY * cameraSpeed;
-  }
-
-  lastMouseX = xpos;
-  lastMouseY = ypos;
-}
-
-void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
-  cameraRadius -= yoffset * zoomSpeed;
-}
-
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_PRESS) {
-    shiftPressed = true;
-  } else if (key == GLFW_KEY_LEFT_SHIFT && action == GLFW_RELEASE) {
-    shiftPressed = false;
-  }
-}
-
 int main(int argc, char const *argv[]) {
-  glfwSetFramebufferSizeCallback(window->getWindow(), framebufferSizeCallback);
-  glfwSetWindowSizeCallback(window->getWindow(), windowSizeCallback);
-  glfwSetMouseButtonCallback(window->getWindow(), mouseButtonCallback);
-  glfwSetCursorPosCallback(window->getWindow(), mouseCallback);
-  glfwSetScrollCallback(window->getWindow(), scrollCallback);
-  glfwSetKeyCallback(window->getWindow(), keyCallback);
-
-  GLShader* shader = new GLShader("shaders/Basic.vs", "shaders/Basic.fs");
-  Model modelBackpack;
-
   ImGui::CreateContext();
   ImGui_ImplGlfw_InitForOpenGL(window->getWindow(), true);
   ImGui::StyleColorsDark();
@@ -107,65 +35,82 @@ int main(int argc, char const *argv[]) {
 
   embraceTheDarkness();
 
-  float workspaceWindowWidth  = 0.0f;
-  float workspaceWindowHeight = 0.0f;
-  bool m_fileDialogOpen;
-  ImFileDialogInfo m_fileDialogInfo;
+  /* Audio Engine */
+  AudioEngineManager engineManager;
+  std::string selectedEngine = "JACK";
+  std::string selectedInputDevice;
+  std::vector<std::string> availableInputs;
 
   while (!window->isClosed()) {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    shader->Use();
-
-    // 3D Projection
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), WIDTH / HEIGHT, 0.1f, 1000.0f);
-    shader->SetMat4("uProjection", projection);
-
-    // 3D Model
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
-    shader->SetMat4("uModel", model);
-
-    // 3D View
-    glm::mat4 view = glm::mat4(1.0f);
-
-    cameraPos.x = cameraRadius * cos(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
-    cameraPos.y = cameraRadius * sin(glm::radians(cameraPitch));
-    cameraPos.z = cameraRadius * sin(glm::radians(cameraYaw)) * cos(glm::radians(cameraPitch));
-    view = glm::lookAt(cameraPos, glm::vec3(0.0f, 0.0f, 0.0f), cameraUp);
-
-    shader->SetMat4("uView", view);
-    
-    modelBackpack.Draw(*shader);
-
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("Control");
-    
-    ImGui::SameLine();
-    if (ImGui::Button(ICON_FA_FOLDER_OPEN " Open Model")) {
-      m_fileDialogOpen = true;
-      m_fileDialogInfo.title = "Open Model";
-      m_fileDialogInfo.type = ImGuiFileDialogType_OpenFile;
-      m_fileDialogInfo.directoryPath = std::filesystem::current_path();
-      m_fileDialogInfo.allowedExtensions = allowedExtensions;
-    }
 
-    /* Slider float for zoom and camera speed */
-    ImGui::SliderFloat("Zoom Speed", &zoomSpeed, 0.0f, 1.0f);
-    ImGui::SliderFloat("Camera Speed", &cameraSpeed, 0.0f, 1.0f);
+    ImGui::Begin("Audio Engine");
+      // Select Engine
+      if (ImGui::BeginCombo("Audio Engine", selectedEngine.c_str())) {
+        if (ImGui::Selectable("JACK", selectedEngine == "JACK")) {
+          selectedEngine = "JACK";
+          engineManager.setEngine(std::make_unique<JackEngine>());
+        }
+        if (ImGui::Selectable("PulseAudio", selectedEngine == "PulseAudio")) {
+          selectedEngine = "PulseAudio";
+          // engineManager.setEngine(std::make_unique<PulseAudioEngine>());
+        }
+        ImGui::EndCombo();
+      }
+
+      // Select Input Device
+      if (engineManager.getEngine()) {
+        availableInputs = engineManager.getEngine()->getAvailableInputDevices();
+        if (ImGui::BeginCombo("Input Device", selectedInputDevice.c_str())) {
+          for (const auto &input : availableInputs) {
+            if (ImGui::Selectable(input.c_str(), selectedInputDevice == input)) {
+              selectedInputDevice = input;
+              engineManager.getEngine()->setInputDevice(input);
+            }
+          }
+          ImGui::EndCombo();
+        }
+      }
+
+      // Status 
+      if (engineManager.getEngine()) {
+        ImGui::Text("Backend Running: %s", engineManager.getEngine()->isBackendRunning() ? "Yes" : "No");
+      }
+
+      // Start/Stop Backend
+      if (engineManager.getEngine()) {
+        if (ImGui::Button("Start Backend")) {
+          engineManager.getEngine()->startBackend();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Stop Backend")) {
+          engineManager.getEngine()->stopBackend();
+        }
+      }
+
+      // Start/Stop Recording
+      if (engineManager.getEngine()) {
+        if (ImGui::Button("Start Recording")) {
+          engineManager.getEngine()->startRecording();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Stop Recording")) {
+          engineManager.getEngine()->stopRecording();
+        }
+      }
 
     ImGui::End();
 
-    if (ImGui::FileDialog(&m_fileDialogOpen, &m_fileDialogInfo)) {
-      if (m_fileDialogInfo.resultPath.has_extension()) {
-        std::string extension = m_fileDialogInfo.resultPath.extension().string();
-        if (std::find(allowedExtensions.begin(), allowedExtensions.end(), extension) != allowedExtensions.end()) {
-          modelBackpack.reloadModel(m_fileDialogInfo.resultPath.string());
-        }
+    if (engineManager.getEngine()) {
+      if (engineManager.getEngine()->isRecording()) {
+        std::cout << "Writing audio buffer" << std::endl;
+        engineManager.getEngine()->writeAudioBuffer();
       }
     }
 

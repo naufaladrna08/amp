@@ -31,9 +31,11 @@ add_executable(
   src/engine/Model.cpp
   src/engine/StbImage.cpp
   src/ui/FileDialog.cpp
+  src/engine/AudioEngineManager.cpp
+  src/engine/implementation/Jack.cpp
 )
 
-target_link_libraries(Guitar glfw glm imgui glad assimp)
+target_link_libraries(Guitar glfw glm imgui glad assimp -ljack -lsndfile)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
